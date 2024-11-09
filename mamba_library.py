@@ -79,7 +79,7 @@ class MambaBlock(nn.Module):
         }
 
         # Update default configuration with any provided keyword arguments (ignoring non-mamba KVs)
-        if self.ssm_layer is 'mamba':
+        if self.ssm_layer == 'mamba':
             mamba_config.update({k: v for k, v in kwargs.items() if k in mamba_config})
             # Initialize Mamba with updated configuration
             self.ssm = Mamba(d_model=d_model, **mamba_config)
