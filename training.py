@@ -3,9 +3,11 @@ import argparse
 
 import torch
 from torch import optim
-import mamba_library as ml
+from torch.utils.data import DataLoader
 
-from dynabench.dataset import download_equation
+
+import mamba_library as ml
+from dynabench.dataset import DynabenchIterator
 
 # arg parse with arguments for 
 
@@ -18,7 +20,7 @@ from dynabench.dataset import download_equation
 
 # I/O
 ## model checkpoint save paths
-## 
+## data_dir
 
 parser = argparse.ArgumentParser()
 
@@ -28,4 +30,4 @@ parser = argparse.ArgumentParser()
 # ------- I/O config
 
 
-# download_equation('advection', structure='grid', resolution='low')
+it = DynabenchIterator()

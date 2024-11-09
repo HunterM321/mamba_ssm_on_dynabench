@@ -15,66 +15,47 @@ import argparse
 
 import argparse
 
-### Advection equation
-def create_eqn_advection_parser():
-    advection_parser = argparse.ArgumentParser(description='Configuration options for Advection equation dataset')
-    advection_parser.add_argument('--velocity', type=float, default=1.0, help='Advection velocity')
-    advection_parser.add_argument('--domain', type=float, nargs=2, default=[0.0, 1.0], help='Spatial domain as [start, end]')
-    advection_parser.add_argument('--grid_points', type=int, default=100, help='Number of grid points in the spatial domain')
-    advection_parser.add_argument('--time_steps', type=int, default=100, help='Number of time steps for simulation')
-    return advection_parser
+def create_dynabench_dataset_parser():
+    dataset_parser = argparse.ArgumentParser(description="Configuration options for the Dynabench dataset")
 
-### Burgers equation
-def create_eqn_burgers_parser():
-    burgers_parser = argparse.ArgumentParser(description='Configuration options for Burgers equation dataset')
-    burgers_parser.add_argument('--viscosity', type=float, default=0.1, help='Viscosity parameter')
-    burgers_parser.add_argument('--domain', type=float, nargs=2, default=[0.0, 1.0], help='Spatial domain as [start, end]')
-    burgers_parser.add_argument('--grid_points', type=int, default=100, help='Number of grid points in the spatial domain')
-    burgers_parser.add_argument('--time_steps', type=int, default=100, help='Number of time steps for simulation')
-    burgers_parser.add_argument('--initial_condition', type=str, default='sin', help='Initial condition (e.g., "sin", "gaussian")')
-    return burgers_parser
+    # Equation to use
+    dataset_parser.add_argument(
+        "--equation", type=str, default="wave",
+        choices=["advection", "burgers", "gasdynamics", "kuramotosivashinsky", "reactiondiffustion", "wave"],
+        help="The equation to use. Choices are 'advection', 'burgers', 'gasdynamics', 'kuramotosivashinsky', 'reactiondiffustion', or 'wave'."
+    )
 
-### Gas dynamics equation
-def create_eqn_gas_dynamics_parser():
-    gas_dynamics_parser = argparse.ArgumentParser(description='Configuration options for Gas dynamics equation dataset')
-    gas_dynamics_parser.add_argument('--gamma', type=float, default=1.4, help='Ratio of specific heats (adiabatic index)')
-    gas_dynamics_parser.add_argument('--domain', type=float, nargs=2, default=[0.0, 1.0], help='Spatial domain as [start, end]')
-    gas_dynamics_parser.add_argument('--grid_points', type=int, default=100, help='Number of grid points in the spatial domain')
-    gas_dynamics_parser.add_argument('--time_steps', type=int, default=100, help='Number of time steps for simulation')
-    gas_dynamics_parser.add_argument('--initial_density', type=float, default=1.0, help='Initial density')
-    gas_dynamics_parser.add_argument('--initial_velocity', type=float, default=0.0, help='Initial velocity')
-    return gas_dynamics_parser
+    # Structure of the dataset
+    dataset_parser.add_argument(
+        "--structure", type=str, default="cloud", choices=["cloud", "grid"],
+        help="The structure of the dataset. Choices are 'cloud' or 'grid'."
+    )
 
-### Kuramoto-Sivashinsky
-def create_eqn_kuramoto_sivashinsky_parser():
-    ks_parser = argparse.ArgumentParser(description='Configuration options for Kuramoto-Sivashinsky equation dataset')
-    ks_parser.add_argument('--domain', type=float, nargs=2, default=[0.0, 1.0], help='Spatial domain as [start, end]')
-    ks_parser.add_argument('--grid_points', type=int, default=100, help='Number of grid points in the spatial domain')
-    ks_parser.add_argument('--time_steps', type=int, default=100, help='Number of time steps for simulation')
-    ks_parser.add_argument('--initial_condition', type=str, default='random', help='Initial condition (e.g., "random", "sin")')
-    return ks_parser
+    # Resolution of the dataset
+    dataset_parser.add_argument(
+        "--resolution", type=str, default="low",
+        choices=["low", "medium", "high", "full"],
+        help=("The resolution of the dataset. Choices are 'low', 'medium', 'high', or 'full'.\n"
+              "Low resolution: 225 points (15x15 grid for 'grid' structure),\n"
+              "Medium resolution: 484 points (22x22 grid),\n"
+              "High resolution: 900 points (30x30 grid),\n"
+              "Full resolution: 64x64 grid.")
+    )
 
-### Reaction-Diffusion
-def create_eqn_reaction_diffusion_parser():
-    rd_parser = argparse.ArgumentParser(description='Configuration options for Reaction-Diffusion equation dataset')
-    rd_parser.add_argument('--diffusion_u', type=float, default=0.16, help='Diffusion coefficient for species U')
-    rd_parser.add_argument('--diffusion_v', type=float, default=0.08, help='Diffusion coefficient for species V')
-    rd_parser.add_argument('--domain', type=float, nargs=2, default=[0.0, 1.0], help='Spatial domain as [start, end]')
-    rd_parser.add_argument('--grid_points', type=int, default=100, help='Number of grid points in the spatial domain')
-    rd_parser.add_argument('--time_steps', type=int, default=100, help='Number of time steps for simulation')
-    rd_parser.add_argument('--initial_condition', type=str, default='random', help='Initial condition for species concentrations')
-    return rd_parser
+    # Lookback for input timesteps
+    dataset_parser.add_argument(
+        "--lookback", type=int, default=1,
+        help="Number of timesteps to use for the input data. Defaults to 1."
+    )
 
-### Wave equation
-def create_eqn_wave_parser():
-    wave_parser = argparse.ArgumentParser(description='Configuration options for Wave equation dataset')
-    wave_parser.add_argument('--speed', type=float, default=1.0, help='Wave propagation speed')
-    wave_parser.add_argument('--domain', type=float, nargs=2, default=[0.0, 1.0], help='Spatial domain as [start, end]')
-    wave_parser.add_argument('--grid_points', type=int, default=100, help='Number of grid points in the spatial domain')
-    wave_parser.add_argument('--time_steps', type=int, default=100, help='Number of time steps for simulation')
-    wave_parser.add_argument('--initial_displacement', type=str, default='gaussian', help='Initial displacement condition (e.g., "gaussian", "sin")')
-    wave_parser.add_argument('--initial_velocity', type=float, default=0.0, help='Initial velocity condition')
-    return wave_parser
+    # Rollout for target timesteps
+    dataset_parser.add_argument(
+        "--rollout", type=int, default=1,
+        help="Number of timesteps to use for the target data. Defaults to 1."
+    )
+
+    return dataset_parser
+
 
 # --------------------------- MODELS --------------------------- #
 

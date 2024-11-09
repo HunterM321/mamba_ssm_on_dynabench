@@ -1,0 +1,5 @@
+{
+    "datasets": ["advection", "burgers", "gasdynamics", "kuramotosivashinsky", "reactiondiffustion", "wave"],
+    "structures": ["cloud", "grid"],
+    "resolutions": ["low", "medium", "high", "full"]
+}
