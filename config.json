@@ -1,5 +1,7 @@
 {
-    "datasets": ["advection", "burgers", "gasdynamics", "kuramotosivashinsky", "reactiondiffustion", "wave"],
-    "structures": ["cloud", "grid"],
-    "resolutions": ["low", "medium", "high", "full"]
+    "dynabench": {
+        "dynabench_equations": ["advection", "burgers", "gasdynamics", "kuramotosivashinsky", "reactiondiffustion", "wave"],
+        "dynabench_structures": ["cloud", "grid"],
+        "dynabench_resolutions": ["low", "medium", "high", "full"]
+    }
 }

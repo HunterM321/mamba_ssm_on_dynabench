@@ -123,11 +123,11 @@ class MambaTower(nn.Module):
     **kwargs : dict
         Additional keyword arguments for Mamba configuration.
     """
-    def __init__(self, d_model, n_layers, global_pool=False, do_norm=True, dropout_level=0, ssm_layer='mamba', **kwargs):
+    def __init__(self, d_model, n_layers, global_pool=False, do_norm=True, dropout_level=0, ssm_layer=None, **kwargs):
         super().__init__()
 
         self.global_pool = global_pool
-
+        if ssm_layer is None: ssm_layer = 'mamba'
         # Create MambaBlocks with shared configuration
         self.blocks = nn.ModuleList([
             MambaBlock(d_model, do_norm=do_norm, dropout_level=dropout_level, ssm_layer=ssm_layer, **kwargs)

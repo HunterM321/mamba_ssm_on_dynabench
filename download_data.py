@@ -2,13 +2,11 @@ import argparse
 import json
 from dynabench.dataset import download_equation
 
-
-# Load choices from JSON configuration file
 with open("config.json", "r") as f:
     config = json.load(f)
-DATASETS = config["datasets"]
-STRUCTURES = config["structures"]
-RESOLUTIONS = config["resolutions"]
+DATASETS = config["dynabench_datasets"]
+STRUCTURES = config["dynabench_structures"]
+RESOLUTIONS = config["dynabench_resolutions"]
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Download datasets with specific configurations")
