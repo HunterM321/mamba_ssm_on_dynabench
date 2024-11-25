@@ -1,4 +1,4 @@
-from dynabench.iterator import DynabenchIterator
+from dynabench.dataset import DynabenchIterator
 from torch.utils.data import DataLoader
 from typing import Tuple
 from conditional_parser import ConditionalArgumentParser

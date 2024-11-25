@@ -11,7 +11,7 @@ class MambaSequencePredictor(nn.Module):
         ----------
         input_dim : int
             Dimensionality of input features.
-        d_model : int
+        d_model : int, optional (default=512)
             Dimensionality of features inside the MambaTower.
         output_dim : int
             Dimensionality of the output (number of classes or regression target dimension).

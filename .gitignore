@@ -1,3 +1,5 @@
 data
 __pycache__
 test_parsing.py
+models/__pycache__
+testing.py

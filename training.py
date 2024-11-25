@@ -13,9 +13,6 @@ from config_parsers import create_dynabench_dataset_parser, create_MambaTower_pa
 
 from dynabench.dataset import DynabenchIterator
 
-
-
-
 with open("config.json", "r") as f:
     config = json.load(f)
 EQUATIONS = config["dynabench"]["dynabench_equations"]

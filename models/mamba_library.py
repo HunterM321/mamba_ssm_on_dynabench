@@ -192,7 +192,7 @@ class Mamba_ImgBlock(nn.Module):
     Raises:
         ValueError if Module called on input whose (length, width) dimensions are not divisible by self.patch_size.
     """
-    def __init__(self, patch_size=4, embed_dim=256, n_layers=1, do_norm=False, dropout_level=0, ssm_layer='mamba', **kwargs):
+    def __init__(self, patch_size=4, embed_dim=256, n_layers=1, do_norm=False, dropout_level=0, ssm_layer='None', **kwargs):
         super().__init__()
 
         self.patch_size = patch_size

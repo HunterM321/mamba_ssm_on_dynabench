@@ -4,9 +4,9 @@ from dynabench.dataset import download_equation
 
 with open("config.json", "r") as f:
     config = json.load(f)
-DATASETS = config["dynabench_datasets"]
-STRUCTURES = config["dynabench_structures"]
-RESOLUTIONS = config["dynabench_resolutions"]
+DATASETS = config["dynabench"]["dynabench_equations"]
+STRUCTURES = config["dynabench"]["dynabench_structures"]
+RESOLUTIONS = config["dynabench"]["dynabench_resolutions"]
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Download datasets with specific configurations")
