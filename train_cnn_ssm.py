@@ -7,6 +7,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 
 from tqdm import tqdm
+import wandb
 
 Apple_computer = True
 if Apple_computer:
@@ -17,6 +18,20 @@ print('Using device:', device)
 
 lookback = 3
 rollout = 3
+epoch = 10
+
+wandb.init(
+    project="CPEN355",
+
+    config={
+    "auther": "hunter",
+    "architecture": "CNN+SSM",
+    "dataset": "Dynabench",
+    "epochs": epoch,
+    "lookback": lookback,
+    "rollout": rollout,
+    }
+)
 
 advection_train_iterator = DynabenchIterator(split="train",
                                              equation='advection',
@@ -36,7 +51,7 @@ model.eval()
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
 criterion = nn.MSELoss()
 
-for epoch in range(10):
+for epoch in range(epoch):
     model.train()
     # Use tqdm for the outer loop to show epoch progress
     with tqdm(total=len(train_loader), desc=f"Epoch {epoch + 1}/{10}", unit="batch") as pbar:
@@ -49,6 +64,8 @@ for epoch in range(10):
             loss.backward()
             optimizer.step()
             
+            wandb.log({'train_loss': loss.item()})
+
             # Update the progress bar with loss information
             pbar.set_postfix({"Loss": loss.item()})
             pbar.update(1)
@@ -71,6 +88,8 @@ with tqdm(total=len(test_loader), desc="Testing", unit="batch") as pbar:
         
         # Append the loss to the list
         loss_values.append(loss.item())
+
+        wandb.log({'test_loss': loss.item()})
         
         # Update the progress bar with loss information
         pbar.set_postfix({"Loss": loss.item()})
