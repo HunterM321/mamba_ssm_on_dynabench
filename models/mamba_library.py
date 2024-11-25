@@ -1,6 +1,6 @@
 # from mamba_ssm import Mamba, Mamba2
 # from mamba_minimal.model import ModelArgs
-from mamba_minimal_model import ModelArgs, MambaBlock_simple, ResidualBlock
+from models.mamba_minimal_model import ModelArgs, MambaBlock_simple, ResidualBlock
 import os
 import torch
 import torch.nn as nn
