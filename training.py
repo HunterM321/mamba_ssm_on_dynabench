@@ -1,4 +1,12 @@
+import sys
 import os
+
+# Add the parent directory to the Python path
+# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "data_wrapper")))
+
+from data_wrapper.data_wrapper import get_datasets
+from utils.model_wrapper import get_model
+
 import argparse
 import conditional_parser as cp
 import json
@@ -8,7 +16,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
-import mamba_library as ml
+import models.mamba_library as ml
 from config_parsers import create_dynabench_dataset_parser, create_MambaTower_parser
 
 from dynabench.dataset import DynabenchIterator
@@ -58,76 +66,33 @@ def create_arg_parser():
     parser.add_argument("--log_interval", type=int, default=10, help="Interval (in batches) to log training progress.")
 
     # ------- Model Configuration -------
-    subparsers = parser.add_subparsers(dest="model", required=True, help="Choose the model to configure")
+    # subparsers = parser.add_subparsers(dest="model", required=True, help="Choose the model to configure")
 
     # Transformer-specific arguments
-    transformer_parser = subparsers.add_parser("transformer", help="Transformer model configuration")
-    transformer_parser.add_argument("--heads", type=int, required=True, help="Number of attention heads")
-    transformer_parser.add_argument("--hidden_dim", type=int, required=True, help="Hidden dimension size")
-    transformer_parser.add_argument("--num_layers", type=int, default=6, help="Number of transformer layers")
-    transformer_parser.add_argument("--dropout", type=float, default=0.1, help="Dropout rate")
+    # transformer_parser = subparsers.add_parser("transformer", help="Transformer model configuration")
+    # transformer_parser.add_argument("--heads", type=int, required=True, help="Number of attention heads")
+    # transformer_parser.add_argument("--hidden_dim", type=int, required=True, help="Hidden dimension size")
+    # transformer_parser.add_argument("--num_layers", type=int, default=6, help="Number of transformer layers")
+    # transformer_parser.add_argument("--dropout", type=float, default=0.1, help="Dropout rate")
 
     # CNN-specific arguments
-    cnn_parser = subparsers.add_parser("cnn", help="CNN model configuration")
-    cnn_parser.add_argument("--num_filters", type=int, required=True, help="Number of convolutional filters")
-    cnn_parser.add_argument("--kernel_size", type=int, default=3, help="Kernel size for convolutions")
-    cnn_parser.add_argument("--stride", type=int, default=1, help="Stride size for convolution")
-    cnn_parser.add_argument("--padding", type=int, default=1, help="Padding for convolution layers")
-    cnn_parser.add_argument("--pooling", type=str, choices=["max", "avg"], default="max", help="Pooling type")
+    # cnn_parser = subparsers.add_parser("cnn", help="CNN model configuration")
+    # cnn_parser.add_argument("--num_filters", type=int, required=True, help="Number of convolutional filters")
+    # cnn_parser.add_argument("--kernel_size", type=int, default=3, help="Kernel size for convolutions")
+    # cnn_parser.add_argument("--stride", type=int, default=1, help="Stride size for convolution")
+    # cnn_parser.add_argument("--padding", type=int, default=1, help="Padding for convolution layers")
+    # cnn_parser.add_argument("--pooling", type=str, choices=["max", "avg"], default="max", help="Pooling type")
 
     return parser
+
+def main():
+
+    train_loader, val_loader, test_loader = get_datasets(args)
+    model = model_wrapper.get_model(args)
 
 if __name__ == "__main__":
     # Parse arguments
     parser = create_arg_parser()
     args = parser.parse_args()
 
-    # Set up dataset iterator based on mode
-    if args.mode == "train":
-        it_train = DynabenchIterator(
-            split="train",
-            equation=args.equation,
-            structure=args.structure,
-            resolution=args.resolution,
-            base_path=args.data_dir,
-            lookback=args.lookback,
-            rollout=args.rollout,
-            download=args.download
-        )
-        it_val = DynabenchIterator(
-            split="val",
-            equation=args.equation,
-            structure=args.structure,
-            resolution=args.resolution,
-            base_path=args.data_dir,
-            lookback=args.lookback,
-            rollout=args.rollout,
-            download=args.download
-        )
-    elif args.mode == "test":
-        it_test = DynabenchIterator(
-            split="test",
-            equation=args.equation,
-            structure=args.structure,
-            resolution=args.resolution,
-            base_path=args.data_dir,
-            lookback=args.lookback,
-            rollout=args.rollout,
-            download=args.download
-        )
-
-    # Training and model setup would go here
-    print(f"Running in {args.mode} mode with {args.model} model.")
-
-    advection_iterator = DynabenchIterator(equation='burgers',
-                                       structure='grid',
-                                       resolution='low',
-                                       lookback=4,
-                                       rollout=16,
-                                       base_path='/arc/project/st-cthrampo-1/tate/cpen355-data')
-
-
-import conditional_parser as cp
-parser = cp.ConditionalArgumentParser()
-
-parser.add_conditional()
+    main(args)
