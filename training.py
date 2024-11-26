@@ -1,5 +1,6 @@
 import sys
 import os
+import wandb
 
 # Add the parent directory to the Python path
 # sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "data_wrapper")))
@@ -73,6 +74,44 @@ def create_arg_parser():
     parser.add_conditional('model', "MambaPatchMOL", "--n_layers", default=3, type=int)
     parser.add_conditional('model', "MambaPatchMOL", "--time_handling", required=True, type=str) # decided by objective
     return parser
+
+def create_config(args):
+    """
+    Creates a configuration dictionary for wandb based on parsed arguments.
+    
+    Args:
+        args (Namespace): Parsed arguments from argparse.
+    
+    Returns:
+        dict: A configuration dictionary for wandb.
+    """
+    return {
+        # General Configuration
+        "mode": args.mode,
+        
+        # Dataset Configuration
+        "dataset": args.dataset,
+        "dynabench": {
+            "equation": args.equation if args.dataset == "dynabench" else None,
+            "structure": args.structure if args.dataset == "dynabench" else None,
+            "resolution": args.resolution if args.dataset == "dynabench" else None,
+            "training_setting": args.training_setting if args.dataset == "dynabench" else None,
+            "lookback": args.lookback if args.dataset == "dynabench" else None,
+        },
+        
+        # Training Configuration
+        "epochs": args.epochs,
+        "batch_size": args.batch_size,
+        "optimizer": args.optimizer,
+        "lr": args.lr,
+        "weight_decay": args.weight_decay,
+        "loss": args.loss,
+        "log_interval": args.log_interval,
+
+        # Model Configuration
+        "model": args.model,
+    }
+
 
 def train_loop(args, model, optimizer, criterion, train_loader, val_loader):
 
@@ -175,6 +214,11 @@ def test(args, model, optimizer, criterion, test_loader):
             print(f"Average test loss: {losses_over_rollout}")
 
 def main(args):
+
+    wandb.init(
+            project="CPEN355",
+            config=create_config(args),
+        )
 
     # data
     train_loader, val_loader, test_loader = get_datasets(args)
