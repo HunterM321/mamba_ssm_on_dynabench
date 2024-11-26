@@ -1,4 +1,11 @@
-from mamba_ssm import Mamba, Mamba2
+# from mamba_ssm import Mamba, Mamba2
+# from mamba_minimal.model import ModelArgs
+use_real_mamba = False
+
+if use_real_mamba:
+    from mamba_ssm import Mamba, Mamba2
+else:
+    from models.mamba_minimal_model import ModelArgs, MambaBlock_simple, ResidualBlock
 import os
 import torch
 import torch.nn as nn
@@ -126,13 +133,23 @@ class MambaTower(nn.Module):
     def __init__(self, d_model, n_layers, global_pool=False, do_norm=True, dropout_level=0, ssm_layer=None, **kwargs):
         super().__init__()
 
+        self.args = ModelArgs(d_model=d_model,
+                              n_layer=n_layers,
+                              vocab_size=3)
+
         self.global_pool = global_pool
         if ssm_layer is None: ssm_layer = 'mamba'
         # Create MambaBlocks with shared configuration
-        self.blocks = nn.ModuleList([
-            MambaBlock(d_model, do_norm=do_norm, dropout_level=dropout_level, ssm_layer=ssm_layer, **kwargs)
-            for _ in range(n_layers)
-        ])
+        if use_real_mamba:
+            self.blocks = nn.ModuleList([
+                MambaBlock(d_model, do_norm=do_norm, dropout_level=dropout_level, ssm_layer=ssm_layer, **kwargs)
+                for _ in range(n_layers)
+            ])
+        else:
+            self.blocks = nn.ModuleList([
+                ResidualBlock(args=self.args)
+                for _ in range(n_layers)
+            ])
 
     def forward(self, x):
         for block in self.blocks:
