@@ -5,6 +5,7 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 from torch.utils.data import DataLoader
+import numpy as np
 
 from tqdm import tqdm
 import wandb
@@ -53,6 +54,8 @@ criterion = nn.MSELoss()
 
 for epoch in range(epoch):
     model.train()
+
+    losses = []
     # Use tqdm for the outer loop to show epoch progress
     with tqdm(total=len(train_loader), desc=f"Epoch {epoch + 1}/{10}", unit="batch") as pbar:
         for i, (x, y, p) in enumerate(train_loader):
@@ -61,14 +64,17 @@ for epoch in range(epoch):
             y_pred = model(x)
             
             loss = criterion(y_pred, y)
+            losses.append(loss.item())
+
             loss.backward()
             optimizer.step()
-            
-            wandb.log({'train_loss': loss.item()})
 
             # Update the progress bar with loss information
             pbar.set_postfix({"Loss": loss.item()})
             pbar.update(1)
+    
+    mean_loss = np.mean(losses)
+    wandb.log({'train_loss': mean_loss})
 
 advection_test_iterator = DynabenchIterator(split="test",
                                             equation='advection',
@@ -82,7 +88,7 @@ test_loader = DataLoader(advection_test_iterator, batch_size=32, shuffle=False)
 loss_values = []
 with tqdm(total=len(test_loader), desc="Testing", unit="batch") as pbar:
     for i, (x, y, p) in enumerate(test_loader):
-        x, y = x[:, :, 0].float(), y[:, :, 0].float()
+        x, y = x[:, :, 0].float().to(device), y[:, :, 0].float().to(device)
         y_pred = model(x, t_eval=range(17))
         loss = criterion(y_pred, y)
         
