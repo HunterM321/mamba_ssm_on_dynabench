@@ -1,9 +1,8 @@
-use_real_mamba = False
+use_real_mamba = True
 
 if use_real_mamba:
     from mamba_ssm import Mamba, Mamba2
-else:
-    from models.mamba_minimal_model import ModelArgs, MambaBlock_simple, ResidualBlock
+from models.mamba_minimal_model import ModelArgs, MambaBlock_simple, ResidualBlock
 import os
 import torch
 import torch.nn as nn
