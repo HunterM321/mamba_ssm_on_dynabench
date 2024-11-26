@@ -2,6 +2,7 @@ data
 __pycache__
 test_parsing.py
 models/__pycache__
+config_parsers.py
 testing.py
 wandb
 cpen355-venv

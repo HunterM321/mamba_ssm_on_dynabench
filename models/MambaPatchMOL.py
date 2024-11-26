@@ -2,7 +2,7 @@ from einops.layers.torch import Rearrange
 import torch
 import torch.nn as nn
 
-from mamba_library import MambaTower
+from .mamba_library import MambaTower
 
 class MambaPatchMOL(nn.Module):
     def __init__(self, patch_size, d_model, n_layers, time_handling="keep", **mamba_kwargs):
