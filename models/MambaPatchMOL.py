@@ -94,10 +94,10 @@ class MambaPatchMOL(nn.Module):
 
             self.linear_out = nn.Linear(self.d_model, self.patch_dim).to(device=self.device)
 
-            # self.patch_out already defined
-        # print(f"dim: {x.shape}")
+        
+        # Apply patch rearrangement
         x = self.patch_in(x)
-        # print(f"after patch dim: {x.shape}")
+        # patch_dum -> d_model
         x = self.linear_in(x)
         # print(f"after linear dim: {x.shape}")
 

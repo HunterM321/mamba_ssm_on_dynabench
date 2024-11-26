@@ -106,6 +106,9 @@ class MambaCNNMOL(nn.Module):
                                 ssm_layer='mamba')
     
     def forward(self, x):
+        # Extract the feature dimension
+        x = torch.squeeze(x, dim=2)
+
         B, T, H, W = x.shape
         
         x = self.in_cnn(x)
@@ -113,5 +116,8 @@ class MambaCNNMOL(nn.Module):
         x = self.mamba(x)
         x = rearrange(x, 'b c (h w) -> b c h w', h=5, w=5)
         x = self.out_cnn(x)
+
+        # Add the feature dimension
+        x = torch.unsqueeze(x, dim=2)
 
         return x

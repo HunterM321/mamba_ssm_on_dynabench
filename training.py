@@ -73,6 +73,13 @@ def create_arg_parser():
     parser.add_conditional('model', "MambaPatchMOL", "--d_model", default=16, type=int)
     parser.add_conditional('model', "MambaPatchMOL", "--n_layers", default=3, type=int)
     parser.add_conditional('model', "MambaPatchMOL", "--time_handling", required=True, type=str) # decided by objective
+
+    # for MambaCNNMOL
+    parser.add_conditional('model', "MambaCNNMOL", "--input_size", required=True, type=int)     # Lookback size
+    parser.add_conditional('model', "MambaCNNMOL", "--output_size", required=True, type=int)    # Rollout size
+    parser.add_conditional('model', "MambaCNNMOL", "--hidden_layers", default=3, type=int)
+    parser.add_conditional('model', "MambaCNNMOL", "--hidden_channels", default=4, type=int)
+
     return parser
 
 def create_config(args):
@@ -113,62 +120,98 @@ def create_config(args):
     }
 
 
-def train_loop(args, model, optimizer, criterion, train_loader, val_loader):
+def train_loop(args, model, train_loader, val_loader):
 
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    apple_computer = False
+    if apple_computer:
+        device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
+    else:
+        device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    
+    criterion = torch.nn.MSELoss()
+    optimizer = None
 
-    for epoch in range(args.epochs):        
+    for epoch in range(args.epochs):    
+            
         train_bar = tqdm(train_loader, desc=f"Epoch #{epoch} Training", leave=False)
         model.train()
+
+        epoch_train_loss = 0.0
         for x, y, p in train_bar:
 
             x, y, p = x.to(dtype=torch.float32, device=device), y.to(dtype=torch.float32, device=device), p.to(dtype=torch.float32, device=device)
 
+            # If we predict only next time step we will take the first ground truth time step
             if args.training_setting == "nextstep": 
-                y =y[:,[0],:] # remove all but next step, but keep time axis
-            
-            if optimizer != None: optimizer.zero_grad()
+                y =y[:,[0],:]
+
+            # The Mamba Patch model does not define linear layers and parameters until AFTER the first forward pass is ran
+            # So we must have the two if statements below to ensure that this training loop is generalizable.
+            if optimizer != None: 
+                optimizer.zero_grad()
+
+            # Predict Either next step or next ROLLOUT steps
             y_pred = model(x)
-            if optimizer == None: optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay) # required when model defined by forward()
+
+            # If this is MambaPatch and first datapoint it sees then it has no parameters
+            if optimizer == None:
+                optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)             
+
+            # Calculate MSE, calculate gradients, update weights
             loss = criterion(y_pred, y)
             loss.backward()
             optimizer.step()
 
+            # Update variables relating to WandB logging purposes
+            epoch_train_loss += loss.item()
+
             train_bar.set_postfix_str(f"Loss: {loss.item()}")
 
+        # Log epoch training loss to Wandb. Divide Epoch loss with number of batches
+        epoch_train_loss = epoch_train_loss/len(train_bar)
+        wandb.log({"Epoch Training Loss": epoch_train_loss})
+
+        # Default is log_interval == 1 so we run validation every epoch.
         if epoch % args.log_interval == 0:
-            val_loss = 0.0
-            model.eval()
 
             val_bar = tqdm(val_loader, desc="Validation", leave=False)  # Add a tqdm progress bar
-
-            with torch.no_grad():
+            model.eval() # Running inference on validation dataset
+            
+            epoch_val_loss = 0.0
+            with torch.no_grad(): # Ensures we do not train on validation data
                 for x_v, y_v, p_v in val_bar:
+                    
+                    optimizer.zero_grad()
 
                     x_v, y_v, p_v = x_v.to(dtype=torch.float32, device=device), y_v.to(dtype=torch.float32, device=device), p_v.to(dtype=torch.float32, device=device)
-
-                    optimizer.zero_grad()
+                    
                     if args.training_setting == "nextstep": 
                         y_v =y_v[:,[0],:] # remove all but next step, but keep time axis
+
                     y_pred_v = model(x_v)
+
                     loss_v = criterion(y_pred_v, y_v)
-                    val_loss += loss_v
+                    epoch_val_loss += loss_v.item()
 
                     val_bar.set_postfix_str(f"Current val loss: {loss_v.item()}")
 
-                val_loss /= len(val_loader)
-                print(f"Average val loss: {val_loss:.4f}")
+                epoch_val_loss = epoch_val_loss/len(val_bar)
+                wandb.log({"Epoch Validation Loss": epoch_val_loss})
+                # print(f"Average val loss: {epoch_val_loss:.4f}")
 
-def test(args, model, optimizer, criterion, test_loader):
+def test(args, model, test_loader):
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    criterion = torch.nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
     test_bar = tqdm(test_loader, desc="Testing", leave=False) 
 
-
+    # For a lookback/rollout of N, S-to-S predicts the next N time steps all at once with only
+    # the original input of time length N.
     if args.training_setting == "seqtoseq": # seqtoseq testing
 
-        test_loss = 0.0
+        seq_to_seq_test_loss = 0
 
         with torch.no_grad():
             for x_v, y_v, p_v in test_bar:
@@ -178,15 +221,21 @@ def test(args, model, optimizer, criterion, test_loader):
                 optimizer.zero_grad()
                 y_pred_v = model(x_v).detach()
                 loss_v = criterion(y_pred_v, y_v)
-                test_loss += loss_v
+                seq_to_seq_test_loss += loss_v
 
                 test_bar.set_postfix_str(f"Current test loss: {loss_v.item()}")
 
-                test_loss /= len(test_loader)
-                print(f"Average test loss: {test_loss:.4f}")
+            seq_to_seq_test_loss /= len(test_bar)
+            wandb.log({"Seq-to-Seq Test Loss": test})
+            print(f"Average test loss: {seq_to_seq_test_loss:.4f}")
 
+
+    # For lookback/rollout of N, nextstep also predicts the next N time steps, but does this by predicting only the immediate
+    # next time step, and using the predicted time steps as part of the input in predicting future time steps. I.e. it autoregressively
+    # predicts the next N timesteps.
     elif args.training_setting == "nextstep": # use rollout 
 
+        # A 1D vector where the value at index i is the loss from predicting y_pred at i
         losses_over_rollout = torch.zeros(args.lookback)
 
         with torch.no_grad():
@@ -196,10 +245,15 @@ def test(args, model, optimizer, criterion, test_loader):
 
                 optimizer.zero_grad()
 
+                # The code below allows us to regressively use the next predicted time step as an input for further predictions
+
+                # Meaning for a lookback (and rollout) of N, column i in y_pred is the predicted immediate next time step 
+                # given i previously predicted outputs, and N-i original inputs (which preceeds the i previously predicted outputs).
                 y_preds_v = torch.cat(
                     [(x := torch.cat((x_v[:, 1:], (pred := model(x_v))), dim=1))[:, -1:] for _ in range(args.lookback)],
                     dim=1
                 ).detach()
+
 
                 losses_v = torch.stack(
                     [criterion(y_preds_v[:, i], y_v[:, i]) for i in range(args.lookback)],
@@ -207,34 +261,38 @@ def test(args, model, optimizer, criterion, test_loader):
                 )
 
                 losses_over_rollout += losses_v
-
                 test_bar.set_postfix_str(f"Current test loss at each step: {losses_v}")
 
-            losses_over_rollout /= len(losses_over_rollout)
-            print(f"Average test loss: {losses_over_rollout}")
+            losses_over_rollout /= len(test_bar)
+
+            # Create a bar plot with indices and loss
+            data = [[i, value.item()] for i, value in enumerate(losses_over_rollout)]
+            table = wandb.Table(data=data, columns=["Index", "Loss"])
+
+            wandb.log({"Regressive S2S Test Loss": wandb.plot.bar(
+                table, "Index", "Loss", title="Loss Accumulation Over Consecutive Predictions"
+            )})
+
+            # print(f"Average test loss: {losses_over_rollout}")
 
 def main(args):
 
     wandb.init(
             project="CPEN355",
             config=create_config(args),
-        )
+    )
 
-    # data
+    # data and model
     train_loader, val_loader, test_loader = get_datasets(args)
-
-    # model
     model = get_model(args)
 
     # training prep
-    optimizer, criterion = get_training_tools(args, model)
+    # optimizer, criterion = get_training_tools(args, model)
 
     if args.mode in ["train", "both"]:
-
-        train_loop(args, model, optimizer, criterion, train_loader, val_loader)
-
+        train_loop(args, model, train_loader, val_loader)
     if args.mode in ["test", "both"]:
-        test(args, model, optimizer, criterion, test_loader)
+        test(args, model, test_loader)
 
 
 
