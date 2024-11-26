@@ -2,7 +2,7 @@ from einops.layers.torch import Rearrange
 import torch
 import torch.nn as nn
 
-from .mamba_library import MambaTower
+from .mamba_library import MambaTower  # Relative import
 
 class MambaPatchMOL(nn.Module):
     def __init__(self, patch_size, d_model, n_layers, time_handling="keep", **mamba_kwargs):
@@ -36,7 +36,8 @@ class MambaPatchMOL(nn.Module):
         ## Layers - to be defined from first sample
         self.patch_in = None
         self.linear_in = None
-        self.mamba_towers = []
+        # self.mamba_towers = []
+        self.mamba_towers = None
         self.linear_out = None
         self.patch_out = None
 
@@ -67,8 +68,10 @@ class MambaPatchMOL(nn.Module):
                 self.patch_dim = self.patch_size**2 * F
                 self.patch_num = H * W // self.patch_size**2
 
-                self.patch_in = Rearrange('b t f (h1 p1) (h2 p2) -> b (h1 h2) t (f p1 p2)', p1=self.patch_size, p2=self.patch_size).to(device=self.device)
-                self.patch_out = Rearrange('b (h1 h2) t (f p1 p2) -> b t f (h1 p1) (h2 p2)', h1=H//self.patch_size, h2=W//self.patch_size, p1=self.patch_size, p2=self.patch_size).to(device=self.device)
+                # self.patch_in = Rearrange('b t f (h1 p1) (h2 p2) -> b (h1 h2) t (f p1 p2)', p1=self.patch_size, p2=self.patch_size).to(device=self.device)
+                # self.patch_out = Rearrange('b (h1 h2) t (f p1 p2) -> b t f (h1 p1) (h2 p2)', h1=H//self.patch_size, h2=W//self.patch_size, p1=self.patch_size, p2=self.patch_size).to(device=self.device)
+                self.patch_in = Rearrange('b t f (h1 p1) (h2 p2) -> (b h1 h2) t (f p1 p2)', p1=self.patch_size, p2=self.patch_size).to(device=self.device)
+                self.patch_out = Rearrange('(b h1 h2) t (f p1 p2) -> b t f (h1 p1) (h2 p2)', h1=H//self.patch_size, h2=W//self.patch_size, p1=self.patch_size, p2=self.patch_size).to(device=self.device)
 
             # cloud data: (B, T, N, F)
             elif len(U) == 2:
@@ -79,12 +82,15 @@ class MambaPatchMOL(nn.Module):
                 self.patch_dim = self.patch_size * F
                 self.patch_num = N // self.patch_size
 
-                self.patch_in = Rearrange('b t (h1 p1) f -> b h1 t (f p1)', p1=self.patch_size).to(device=self.device)
-                self.patch_out = Rearrange('b h1 t (f p1) -> b t (h1 p1) f)', p1=self.patch_size, p2=self.patch_size).to(device=self.device)
+                # self.patch_in = Rearrange('b t (h1 p1) f -> b h1 t (f p1)', p1=self.patch_size).to(device=self.device)
+                # self.patch_out = Rearrange('b h1 t (f p1) -> b t (h1 p1) f)', p1=self.patch_size, p2=self.patch_size).to(device=self.device)
+                self.patch_in = Rearrange('b t (h1 p1) f -> (b h1) t (f p1)', p1=self.patch_size).to(device=self.device)
+                self.patch_out = Rearrange('(b h1) t (f p1) -> b t (h1 p1) f)', p1=self.patch_size, p2=self.patch_size).to(device=self.device)
 
             self.linear_in = nn.Linear(self.patch_dim, self.d_model).to(device=self.device)
 
-            self.mamba_towers = nn.ModuleList([MambaTower(d_model=self.d_model,n_layers=self.n_layers, global_pool=False, **self.mamba_kwargs).to(device=self.device) for _ in range(self.patch_num)])
+            # self.mamba_towers = nn.ModuleList([MambaTower(d_model=self.d_model,n_layers=self.n_layers, global_pool=False, **self.mamba_kwargs).to(device=self.device) for _ in range(self.patch_num)])
+            self.mamba_towers = MambaTower(d_model=self.d_model,n_layers=self.n_layers, global_pool=False, **self.mamba_kwargs).to(device=self.device)
 
             self.linear_out = nn.Linear(self.d_model, self.patch_dim).to(device=self.device)
 
@@ -93,19 +99,20 @@ class MambaPatchMOL(nn.Module):
         x = self.patch_in(x)
         # patch_dum -> d_model
         x = self.linear_in(x)
+        # print(f"after linear dim: {x.shape}")
 
-        # Each Mamba will process a CHUNK consisting of a PATCH_NUM of patches 
-        splits = torch.chunk(x, chunks=self.patch_num, dim=1) # 1 is patch dim after rearrange
-
-        # Each patch runs through a Mamba Tower (series of Mamba Blocks)
-        split_ys = [mamba(x_i.squeeze(dim=1)) for mamba, x_i in zip(self.mamba_towers, splits)] # squeeze to remove patch_dim
-
-        # Recollect all the split up processed chunks of patches and bring back to patch_dim -> original spatial_dim
-        y = torch.stack(split_ys, dim=1)
+        y = self.mamba_towers(x)
+        # splits = torch.chunk(x, chunks=self.patch_num, dim=1) # 1 is patch dim after rearrange
+        # # print(f"after split dim (of one tensor): {splits[0].squeeze(dim=1).shape}")
+        # split_ys = [mamba(x_i.squeeze(dim=1)) for mamba, x_i in zip(self.mamba_towers, splits)] # squeeze to remove patch_dim
+        # # print(f"after split dim + mamba (of one tensor): {split_ys[0].squeeze(dim=1).shape}")
+        # y = torch.stack(split_ys, dim=1)
+        # print(f"y dim after concatenating along patch dim: {y.shape}")
         y = self.linear_out(y)
+        # print(f"after linear out: {y.shape}")
         y = self.patch_out(y)
+        # print(f"after final out: {y.shape}")
 
-        # Various options on what the prediction actually is: 
         if self.time_handling == 'last':
             y = y[:,[-1],:]
         elif self.time_handling == 'poolmax':
