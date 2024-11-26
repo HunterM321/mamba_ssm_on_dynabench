@@ -80,8 +80,8 @@ advection_test_iterator = DynabenchIterator(split="test",
                                             equation='advection',
                                             structure='grid',
                                             resolution='low',
-                                            lookback=3,
-                                            rollout=3)
+                                            lookback=lookback,
+                                            rollout=rollout)
 
 test_loader = DataLoader(advection_test_iterator, batch_size=32, shuffle=False)
 

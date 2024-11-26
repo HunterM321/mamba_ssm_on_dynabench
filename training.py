@@ -241,7 +241,7 @@ def test(args, model, test_loader):
     elif args.training_setting == "nextstep": # use rollout 
 
         # A 1D vector where the value at index i is the loss from predicting y_pred at i
-        losses_over_rollout = torch.zeros(args.lookback)
+        losses_over_rollout = torch.zeros(args.lookback).to(device)
 
         with torch.no_grad():
             for x_v, y_v, p_v in test_bar:
@@ -257,7 +257,7 @@ def test(args, model, test_loader):
                 y_preds_v = torch.cat(
                     [(x := torch.cat((x_v[:, 1:], (pred := model(x_v))), dim=1))[:, -1:] for _ in range(args.lookback)],
                     dim=1
-                ).detach()
+                )
 
 
                 losses_v = torch.stack(
@@ -289,7 +289,7 @@ def main(args):
 
     # data and model
     train_loader, val_loader, test_loader = get_datasets(args)
-    model = get_model(args)
+    model = get_model(args).to('cuda:0')
 
     # training prep
     # optimizer, criterion = get_training_tools(args, model)
