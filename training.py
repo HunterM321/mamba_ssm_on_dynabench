@@ -201,7 +201,12 @@ def train_loop(args, model, train_loader, val_loader):
 
 def test(args, model, test_loader):
 
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    apple_computer = False
+    if apple_computer:
+        device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
+    else:
+        device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    
     criterion = torch.nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
