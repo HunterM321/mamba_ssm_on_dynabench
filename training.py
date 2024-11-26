@@ -73,6 +73,13 @@ def create_arg_parser():
     parser.add_conditional('model', "MambaPatchMOL", "--d_model", default=16, type=int)
     parser.add_conditional('model', "MambaPatchMOL", "--n_layers", default=3, type=int)
     parser.add_conditional('model', "MambaPatchMOL", "--time_handling", required=True, type=str) # decided by objective
+
+    # for MambaCNNMOL
+    parser.add_conditional('model', "MambaCNNMOL", "--input_size", required=True, type=int)     # Lookback size
+    parser.add_conditional('model', "MambaCNNMOL", "--output_size", required=True, type=int)    # Rollout size
+    parser.add_conditional('model', "MambaCNNMOL", "--hidden_layers", default=3, type=int)
+    parser.add_conditional('model', "MambaCNNMOL", "--hidden_channels", default=4, type=int)
+
     return parser
 
 def create_config(args):
@@ -115,7 +122,11 @@ def create_config(args):
 
 def train_loop(args, model, optimizer, criterion, train_loader, val_loader):
 
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    apple_computer = False
+    if apple_computer:
+        device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
+    else:
+        device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     for epoch in range(args.epochs):        
         train_bar = tqdm(train_loader, desc=f"Epoch #{epoch} Training", leave=False)

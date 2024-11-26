@@ -1,5 +1,3 @@
-# from mamba_ssm import Mamba, Mamba2
-# from mamba_minimal.model import ModelArgs
 use_real_mamba = False
 
 if use_real_mamba:
