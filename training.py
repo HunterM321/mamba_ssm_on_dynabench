@@ -129,6 +129,7 @@ def train_loop(args, model, train_loader, val_loader):
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     
     criterion = torch.nn.MSELoss()
+    optimizer = None
 
     for epoch in range(args.epochs):    
             
@@ -154,7 +155,7 @@ def train_loop(args, model, train_loader, val_loader):
 
             # If this is MambaPatch and first datapoint it sees then it has no parameters
             if optimizer == None:
-                optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+                optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)             
 
             # Calculate MSE, calculate gradients, update weights
             loss = criterion(y_pred, y)
