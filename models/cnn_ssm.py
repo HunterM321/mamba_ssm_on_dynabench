@@ -101,9 +101,7 @@ class MambaCNNMOL(nn.Module):
                            hidden_layers=hidden_layers,
                            hidden_channels=hidden_channels)
         
-        self.mamba = MambaTower(d_model=25,
-                                n_layers=3,
-                                ssm_layer='mamba')
+        self.mambas = nn.ModuleList([MambaTower(d_model=1, n_layers=3, ssm_layer='mamba') for _ in range(25)])
     
     def forward(self, x):
         # Extract the feature dimension
@@ -112,9 +110,15 @@ class MambaCNNMOL(nn.Module):
         B, T, H, W = x.shape
         
         x = self.in_cnn(x)
-        x = rearrange(x, 'b c h w -> b c (h w)')
-        x = self.mamba(x)
-        x = rearrange(x, 'b c (h w) -> b c h w', h=5, w=5)
+        # x = rearrange(x, 'b c h w -> b c (h w)')
+        x = x.view(B, T, 25)
+        chunks = torch.chunk(x, chunks=25, dim=2)
+        split_xs = [chunk.view(B, T, 1, 1) for chunk in chunks]
+        split_xs = [mamba(x_i.squeeze(dim=2)) for mamba, x_i in zip(self.mambas, split_xs)]
+        x = torch.stack(split_xs, dim=2)
+        x = x.view(B, T, 5, 5)
+        # x = self.mambas(x)
+        # x = rearrange(x, 'b c (h w) -> b c h w', h=5, w=5)
         x = self.out_cnn(x)
 
         # Add the feature dimension

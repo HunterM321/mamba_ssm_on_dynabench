@@ -1,4 +1,4 @@
-use_real_mamba = True
+use_real_mamba = False
 
 if use_real_mamba:
     from mamba_ssm import Mamba, Mamba2
