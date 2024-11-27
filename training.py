@@ -1,5 +1,6 @@
 import sys
 import os
+from datetime import datetime
 import wandb
 
 # Add the parent directory to the Python path
@@ -286,6 +287,7 @@ def main(args):
     wandb.init(
             project="CPEN355",
             config=create_config(args),
+            name=f"{args.dataset}-{args.model}-{args.training_settting}-{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     )
 
     # data and model
