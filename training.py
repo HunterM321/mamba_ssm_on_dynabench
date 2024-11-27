@@ -73,6 +73,7 @@ def create_arg_parser():
     parser.add_conditional('model', "MambaPatchMOL", "--d_model", default=16, type=int)
     parser.add_conditional('model', "MambaPatchMOL", "--n_layers", default=3, type=int)
     parser.add_conditional('model', "MambaPatchMOL", "--time_handling", required=True, type=str) # decided by objective
+    parser.add_conditional('model', "MambaPatchMOL", "--mamba_struct", default="seq", type=str)
 
     # for MambaCNNMOL
     parser.add_conditional('model', "MambaCNNMOL", "--input_size", required=True, type=int)     # Lookback size

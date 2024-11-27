@@ -5,7 +5,7 @@ import torch.nn as nn
 from .mamba_library import MambaTower  # Relative import
 
 class MambaPatchMOL(nn.Module):
-    def __init__(self, patch_size, d_model, n_layers, time_handling="keep", **mamba_kwargs):
+    def __init__(self, patch_size, d_model, n_layers, time_handling="keep", mamba_stuct="seq", **mamba_kwargs):
         """
         Args:
             patch_size (int): Size of each patch (assumes square patches).
@@ -16,18 +16,26 @@ class MambaPatchMOL(nn.Module):
                 - "last": Take the last timestep.
                 - "poolmean": Apply mean pooling over the time dimension.
                 - "poolmax": Apply max pooling over the time dimension.
+            mamba_struct (str): How to apply Mamba over spacial patching. Options:
+                - "seq": Combine batch and patch dimensions and train 1 MambaTower.
+                - "parallel": Run 1 MambaTower/patch_num, where 
+                  patch_num = (h * w) // patch_size**2 for grid data and
+                  patch_num = n // patch_size for cloud data.
             **mamba_kwargs: Additional keyword arguments for MambaTower.
         """
         super().__init__()
         assert time_handling in {"keep", "last", "poolmean", "poolmax"}, \
             "time_handling must be one of 'keep', 'last', 'poolmean', or 'poolmax'"
         assert patch_size > 0, "patch_size must be >0"
+        assert mamba_stuct in ["seq", "parallel"], \
+            "mamb-struct myst be one of 'seq', 'parallel'"
         
         self.patch_size = patch_size
         self.patch_dim = 0
         self.patch_num = 0 # to be defined in forward pass
         self.d_model = d_model
         self.time_handling = time_handling
+        self.mamba_struct = mamba_stuct
         self.n_layers = n_layers
         # to be used to defined shape-dependent layers in forward()
         self.device = mamba_kwargs.get('device', 'cuda')
@@ -36,7 +44,6 @@ class MambaPatchMOL(nn.Module):
         ## Layers - to be defined from first sample
         self.patch_in = None
         self.linear_in = None
-        # self.mamba_towers = []
         self.mamba_towers = None
         self.linear_out = None
         self.patch_out = None
@@ -68,10 +75,12 @@ class MambaPatchMOL(nn.Module):
                 self.patch_dim = self.patch_size**2 * F
                 self.patch_num = H * W // self.patch_size**2
 
-                # self.patch_in = Rearrange('b t f (h1 p1) (h2 p2) -> b (h1 h2) t (f p1 p2)', p1=self.patch_size, p2=self.patch_size).to(device=self.device)
-                # self.patch_out = Rearrange('b (h1 h2) t (f p1 p2) -> b t f (h1 p1) (h2 p2)', h1=H//self.patch_size, h2=W//self.patch_size, p1=self.patch_size, p2=self.patch_size).to(device=self.device)
-                self.patch_in = Rearrange('b t f (h1 p1) (h2 p2) -> (b h1 h2) t (f p1 p2)', p1=self.patch_size, p2=self.patch_size).to(device=self.device)
-                self.patch_out = Rearrange('(b h1 h2) t (f p1 p2) -> b t f (h1 p1) (h2 p2)', h1=H//self.patch_size, h2=W//self.patch_size, p1=self.patch_size, p2=self.patch_size).to(device=self.device)
+                if self.mamba_struct == "parallel":
+                    self.patch_in = Rearrange('b t f (h1 p1) (h2 p2) -> b (h1 h2) t (f p1 p2)', p1=self.patch_size, p2=self.patch_size).to(device=self.device)
+                    self.patch_out = Rearrange('b (h1 h2) t (f p1 p2) -> b t f (h1 p1) (h2 p2)', h1=H//self.patch_size, h2=W//self.patch_size, p1=self.patch_size, p2=self.patch_size).to(device=self.device)
+                else:
+                    self.patch_in = Rearrange('b t f (h1 p1) (h2 p2) -> (b h1 h2) t (f p1 p2)', p1=self.patch_size, p2=self.patch_size).to(device=self.device)
+                    self.patch_out = Rearrange('(b h1 h2) t (f p1 p2) -> b t f (h1 p1) (h2 p2)', h1=H//self.patch_size, h2=W//self.patch_size, p1=self.patch_size, p2=self.patch_size).to(device=self.device)
 
             # cloud data: (B, T, N, F)
             elif len(U) == 2:
@@ -82,32 +91,39 @@ class MambaPatchMOL(nn.Module):
                 self.patch_dim = self.patch_size * F
                 self.patch_num = N // self.patch_size
 
-                # self.patch_in = Rearrange('b t (h1 p1) f -> b h1 t (f p1)', p1=self.patch_size).to(device=self.device)
-                # self.patch_out = Rearrange('b h1 t (f p1) -> b t (h1 p1) f)', p1=self.patch_size, p2=self.patch_size).to(device=self.device)
-                self.patch_in = Rearrange('b t (h1 p1) f -> (b h1) t (f p1)', p1=self.patch_size).to(device=self.device)
-                self.patch_out = Rearrange('(b h1) t (f p1) -> b t (h1 p1) f)', p1=self.patch_size, p2=self.patch_size).to(device=self.device)
+                if self.mamba_struct  == "parallel":
+                    self.patch_in = Rearrange('b t (h1 p1) f -> b h1 t (f p1)', p1=self.patch_size).to(device=self.device)
+                    self.patch_out = Rearrange('b h1 t (f p1) -> b t (h1 p1) f)', p1=self.patch_size, p2=self.patch_size).to(device=self.device)    
+                else:
+                    self.patch_in = Rearrange('b t (h1 p1) f -> (b h1) t (f p1)', p1=self.patch_size).to(device=self.device)
+                    self.patch_out = Rearrange('(b h1) t (f p1) -> b t (h1 p1) f)', p1=self.patch_size, p2=self.patch_size).to(device=self.device)
 
             self.linear_in = nn.Linear(self.patch_dim, self.d_model).to(device=self.device)
 
-            # self.mamba_towers = nn.ModuleList([MambaTower(d_model=self.d_model,n_layers=self.n_layers, global_pool=False, **self.mamba_kwargs).to(device=self.device) for _ in range(self.patch_num)])
-            self.mamba_towers = MambaTower(d_model=self.d_model,n_layers=self.n_layers, global_pool=False, **self.mamba_kwargs).to(device=self.device)
+            if self.mamba_struct == "parallel":
+                self.mamba_towers = nn.ModuleList([MambaTower(d_model=self.d_model,n_layers=self.n_layers, global_pool=False, **self.mamba_kwargs).to(device=self.device) for _ in range(self.patch_num)])
+            else:
+                self.mamba_towers = MambaTower(d_model=self.d_model,n_layers=self.n_layers, global_pool=False, **self.mamba_kwargs).to(device=self.device)
 
             self.linear_out = nn.Linear(self.d_model, self.patch_dim).to(device=self.device)
 
         
         # Apply patch rearrangement
         x = self.patch_in(x)
+        # print(f"after patch dim: {x.shape}")
         # patch_dum -> d_model
         x = self.linear_in(x)
         # print(f"after linear dim: {x.shape}")
 
-        y = self.mamba_towers(x)
-        # splits = torch.chunk(x, chunks=self.patch_num, dim=1) # 1 is patch dim after rearrange
-        # # print(f"after split dim (of one tensor): {splits[0].squeeze(dim=1).shape}")
-        # split_ys = [mamba(x_i.squeeze(dim=1)) for mamba, x_i in zip(self.mamba_towers, splits)] # squeeze to remove patch_dim
-        # # print(f"after split dim + mamba (of one tensor): {split_ys[0].squeeze(dim=1).shape}")
-        # y = torch.stack(split_ys, dim=1)
-        # print(f"y dim after concatenating along patch dim: {y.shape}")
+        if self.mamba_struct == "parallel":
+            splits = torch.chunk(x, chunks=self.patch_num, dim=1) # 1 is patch dim after rearrange
+            # print(f"after split dim (of one tensor): {splits[0].squeeze(dim=1).shape}")
+            split_ys = [mamba(x_i.squeeze(dim=1)) for mamba, x_i in zip(self.mamba_towers, splits)] # squeeze to remove patch_dim
+            # print(f"after split dim + mamba (of one tensor): {split_ys[0].squeeze(dim=1).shape}")
+            y = torch.stack(split_ys, dim=1)
+            # print(f"y dim after concatenating along patch dim: {y.shape}")
+        else:
+            y = self.mamba_towers(x)
         y = self.linear_out(y)
         # print(f"after linear out: {y.shape}")
         y = self.patch_out(y)
