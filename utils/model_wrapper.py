@@ -17,7 +17,7 @@ def get_model(args):
         if (args.training_setting == "seqtoseq" and args.time_handling != "keep") or (args.training_setting == "nextstep" and args.time_handling not in ["last", "poolmax",  "poolmean"]): 
             raise ValueError(f"training object {args.training_setting} incompatible with desired architecture {args.time_handling}")
         
-        model = models.MambaPatchMOL.MambaPatchMOL(args.patch_size, args.d_model, args.n_layers, args.time_handling)
+        model = models.MambaPatchMOL.MambaPatchMOL(args.patch_size, args.d_model, args.n_layers, args.time_handling, args.mamba_struct)
     elif args.model == "MambaCNNMOL":
 
         if args.training_setting == "nextstep" and args.output_size != 1:
