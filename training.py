@@ -19,7 +19,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-with open("config.json", "r") as f:
+script_dir = os.path.dirname(os.path.abspath(__file__))
+file_path = os.path.join(script_dir, 'config.json')
+with open(file_path, "r") as f:
     config = json.load(f)
 EQUATIONS = config["dynabench"]["dynabench_equations"]
 STRUCTURES = config["dynabench"]["dynabench_structures"]
@@ -287,7 +289,7 @@ def main(args):
     wandb.init(
             project="CPEN355",
             config=create_config(args),
-            name=f"{args.dataset}-{args.model}-{args.training_settting}-{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            name=f"{args.dataset}-{args.model}-{args.training_setting}-{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     )
 
     # data and model
