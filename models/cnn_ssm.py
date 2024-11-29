@@ -8,7 +8,7 @@ from einops import rearrange
 
 class CNN(nn.Module):
     """
-        Simple 2D CNN model for grid data.
+        Simple 2D CNN model for grid data, adopted from Dynabench's implementation of the CNN module inside NeuralPDE
 
         Parameters
         ----------
