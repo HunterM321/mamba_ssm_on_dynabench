@@ -1,5 +1,7 @@
 ## Group 2: Evaluation of State-Space Models as efficient dynamical system solvers
 
+Members: Tony Li, Hunter Ma, Tate McCartney
+
 To run the test and evaluation code you need to first download the dataset. You can do so by creating a python script in the level as this repo and paste the following command:
 ``` python
 from dynabench.dataset import download_equation
