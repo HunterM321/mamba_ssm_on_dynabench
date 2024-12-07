@@ -6,6 +6,8 @@ import torch.nn as nn
 from typing import Tuple
 from einops import rearrange
 
+# CNN class inspired by dynabench's NeuralPDE implementation of CNN:
+# https://github.com/badulion/dynabench/blob/master/src/dynabench/model/_grid/cnn.py
 class CNN(nn.Module):
     """
         Simple 2D CNN model for grid data, adopted from Dynabench's implementation of the CNN module inside NeuralPDE
